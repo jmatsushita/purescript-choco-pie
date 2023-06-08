@@ -2,15 +2,15 @@ module ChocoPie where
 
 import Prelude
 
-import Data.Symbol (class IsSymbol, SProxy(..))
+import Data.Symbol (class IsSymbol)
 import Effect (Effect)
 import FRP.Event (Event, create, subscribe)
 import Prim.Row as Row
-import Prim.RowList (class RowToList, Cons, Nil, kind RowList)
+import Prim.RowList (class RowToList, Cons, Nil, RowList)
 import Record as Record
 import Record.Builder (Builder)
 import Record.Builder as Builder
-import Type.Prelude (RLProxy(..))
+import Type.Proxy (Proxy(..))
 
 runChocoPie :: forall driver sink source
    . ChocoPieRecord source sink driver
@@ -38,12 +38,12 @@ instance chocoPieRecord ::
     _ <- replicateMany sinkLP sinks sinkProxies
     pure unit
     where
-      sinkLP = RLProxy :: RLProxy sinkL
-      driverLP = RLProxy :: RLProxy driverL
+      sinkLP = Proxy :: Proxy sinkL
+      driverLP = Proxy :: Proxy driverL
 
 class MakeSinkProxies (sinkL :: RowList Type) (bundle' :: Row Type) (bundle :: Row Type)
   | sinkL -> bundle' bundle where
-  makeSinkProxies :: RLProxy sinkL -> Effect (Builder (Record bundle') (Record bundle))
+  makeSinkProxies :: Proxy sinkL -> Effect (Builder (Record bundle') (Record bundle))
 
 instance makeSinkProxiesCons ::
   ( IsSymbol name
@@ -53,9 +53,9 @@ instance makeSinkProxiesCons ::
   ) => MakeSinkProxies (Cons name (Event a) tail) bundle'' bundle where
   makeSinkProxies _ = compose
       <$> Builder.insert nameP <$> create
-      <*> makeSinkProxies (RLProxy :: RLProxy tail)
+      <*> makeSinkProxies (Proxy :: Proxy tail)
     where
-      nameP = SProxy :: SProxy name
+      nameP = Proxy :: Proxy name
 
 instance makeSinkProxiesNil :: MakeSinkProxies Nil () () where
   makeSinkProxies _ = pure identity
@@ -64,7 +64,7 @@ class CallDrivers
   (driverL :: RowList Type) (driver :: Row Type)
   (bundle :: Row Type) (source' :: Row Type) (source :: Row Type)
   | driverL -> driver bundle source' source where
-  callDrivers :: RLProxy driverL -> Record driver -> Record bundle -> Effect (Builder (Record source') (Record source))
+  callDrivers :: Proxy driverL -> Record driver -> Record bundle -> Effect (Builder (Record source') (Record source))
 
 instance callDriversCons ::
   ( IsSymbol name
@@ -76,9 +76,9 @@ instance callDriversCons ::
   ) => CallDrivers (Cons name driverton driverTail) driver bundle source'' source where
   callDrivers _ drivers bundle = compose
     <$> Builder.insert nameP <$> getSource
-    <*> callDrivers (RLProxy :: RLProxy driverTail) drivers bundle
+    <*> callDrivers (Proxy :: Proxy driverTail) drivers bundle
     where
-      nameP = SProxy :: SProxy name
+      nameP = Proxy :: Proxy name
       bundleton = Record.get nameP bundle
       event = bundleton.event
       driver = Record.get nameP drivers
@@ -90,7 +90,7 @@ instance callDriversNil :: CallDrivers Nil driver bundle () () where
 class ReplicateMany
   (sinkL :: RowList Type) (sink :: Row Type) (bundle :: Row Type)
   | sinkL -> sink bundle where
-  replicateMany :: RLProxy sinkL -> Record sink -> Record bundle -> Effect Unit
+  replicateMany :: Proxy sinkL -> Record sink -> Record bundle -> Effect Unit
 
 instance replicateManyCons ::
   ( IsSymbol name
@@ -102,11 +102,11 @@ instance replicateManyCons ::
     _ <- subscribe sink bundle.push
     replicateMany tailP sinks bundles
     where
-      nameP = SProxy :: SProxy name
+      nameP = Proxy :: Proxy name
       sink = Record.get nameP sinks
       bundle :: { event :: Event a, push :: a -> Effect Unit}
       bundle = Record.get nameP bundles
-      tailP = RLProxy :: RLProxy tail
+      tailP = Proxy :: Proxy tail
 
 instance replicateManyNil :: ReplicateMany Nil sink bundle where
   replicateMany _ _ _ = pure unit
